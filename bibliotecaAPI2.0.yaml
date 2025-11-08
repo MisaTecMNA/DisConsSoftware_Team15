@@ -1,0 +1,876 @@
+openapi: 3.0.3
+info:
+  title: Biblioteca OCR/IA API
+  version: 1.0.0
+  description: >
+    API RESTful para un sistema bibliotecario con registro asistido por OCR/IA,
+    verificación de duplicados, catálogo y reportes. Define recursos principales
+    (works, authors, editions, items), operaciones CRUD y endpoints auxiliares
+    para asociaciones (work-author) y búsquedas.
+  contact:
+    name: Equipo 15 - Desarrollo
+    url: https://example.com/equipo15
+    email: equipo15.dev@example.com
+servers:
+  - url: http://localhost:8000
+    description: Servidor local (desarrollo)
+
+tags:
+  - name: Health
+    description: Estado del servicio
+  - name: Works
+    description: Gestión de obras (entidad abstracta independiente de las ediciones).
+  - name: Authors
+    description: Gestión de autores.
+  - name: Editions
+    description: Gestión de ediciones (a partir de una obra).
+  - name: Items
+    description: Gestión de ejemplares físicos/ítems de una edición.
+  - name: Associations
+    description: Asociaciones entre obras y autores.
+  - name: Reports
+    description: Endpoints auxiliares de consulta/búsqueda.
+
+security:
+  - bearerAuth: []
+
+paths:
+  /:
+    get:
+      tags: [Health]
+      summary: Healthcheck del servicio
+      operationId: getHealth
+      responses:
+        '200':
+          description: Servicio activo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  service: { type: string, example: works }
+                  status: { type: string, example: ok }
+  /works:
+    get:
+      tags: [Works]
+      summary: Listar obras
+      description: Retorna una lista paginada de obras.
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/Q'
+      responses:
+        '200':
+          description: Lista paginada de obras
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Work' }
+                  meta: { $ref: '#/components/schemas/PageMeta' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      tags: [Works]
+      summary: Crear obra
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkCreate' }
+      responses:
+        '201':
+          description: Obra creada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Work' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /works/{id}:
+    get:
+      tags: [Works]
+      summary: Obtener obra por ID
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Obra encontrada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Work' }
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    put:
+      tags: [Works]
+      summary: Reemplazar obra (PUT)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkUpdate' }
+      responses:
+        '200':
+          description: Obra actualizada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Work' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    patch:
+      tags: [Works]
+      summary: Actualización parcial de obra (PATCH)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkPatch' }
+      responses:
+        '200':
+          description: Obra actualizada parcialmente
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Work' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      tags: [Works]
+      summary: Eliminar obra
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204':
+          description: Eliminado sin contenido
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /authors:
+    get:
+      tags: [Authors]
+      summary: Listar autores
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/Q'
+      responses:
+        '200':
+          description: Lista paginada de autores
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Author' }
+                  meta: { $ref: '#/components/schemas/PageMeta' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      tags: [Authors]
+      summary: Crear autor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AuthorCreate' }
+      responses:
+        '201':
+          description: Autor creado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Author' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /authors/{id}:
+    get:
+      tags: [Authors]
+      summary: Obtener autor por ID
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Autor encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Author' }
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    put:
+      tags: [Authors]
+      summary: Reemplazar autor (PUT)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AuthorUpdate' }
+      responses:
+        '200':
+          description: Autor actualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Author' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    patch:
+      tags: [Authors]
+      summary: Actualización parcial de autor (PATCH)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AuthorPatch' }
+      responses:
+        '200':
+          description: Autor actualizado parcialmente
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Author' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      tags: [Authors]
+      summary: Eliminar autor
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204':
+          description: Eliminado sin contenido
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /works/{id}/authors:
+    get:
+      tags: [Associations]
+      summary: Listar autores vinculados a una obra
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Autores de la obra
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Author' }
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      tags: [Associations]
+      summary: Vincular autor a obra
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [author_id]
+              properties:
+                author_id:
+                  type: integer
+                  description: ID del autor a vincular.
+                  example: 10
+      responses:
+        '201':
+          description: Asociación creada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkAuthorLink' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /works/{id}/authors/{authorId}:
+    delete:
+      tags: [Associations]
+      summary: Desvincular autor de obra
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - name: authorId
+          in: path
+          required: true
+          schema: { type: integer }
+          description: ID del autor vinculado a la obra.
+      responses:
+        '204': { description: Asociación eliminada }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /editions:
+    get:
+      tags: [Editions]
+      summary: Listar ediciones
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/Q'
+      responses:
+        '200':
+          description: Lista paginada de ediciones
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Edition' }
+                  meta: { $ref: '#/components/schemas/PageMeta' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/ServerError' }
+    post:
+      tags: [Editions]
+      summary: Crear edición
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EditionCreate' }
+      responses:
+        '201':
+          description: Edición creada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Edition' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /editions/{id}:
+    get:
+      tags: [Editions]
+      summary: Obtener edición por ID
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Edición encontrada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Edition' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/ServerError' }
+    put:
+      tags: [Editions]
+      summary: Reemplazar edición (PUT)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EditionUpdate' }
+      responses:
+        '200':
+          description: Edición actualizada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Edition' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '500': { $ref: '#/components/responses/ServerError' }
+    patch:
+      tags: [Editions]
+      summary: Actualización parcial de edición (PATCH)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EditionPatch' }
+      responses:
+        '200':
+          description: Edición actualizada parcialmente
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Edition' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '500': { $ref: '#/components/responses/ServerError' }
+    delete:
+      tags: [Editions]
+      summary: Eliminar edición
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204': { description: Eliminado sin contenido }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /items:
+    get:
+      tags: [Items]
+      summary: Listar ítems (ejemplares físicos)
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/Q'
+      responses:
+        '200':
+          description: Lista paginada de ítems
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Item' }
+                  meta: { $ref: '#/components/schemas/PageMeta' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/ServerError' }
+    post:
+      tags: [Items]
+      summary: Crear ítem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ItemCreate' }
+      responses:
+        '201':
+          description: Ítem creado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Item' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /items/{id}:
+    get:
+      tags: [Items]
+      summary: Obtener ítem por ID
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Ítem encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Item' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/ServerError' }
+    put:
+      tags: [Items]
+      summary: Reemplazar ítem (PUT)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ItemUpdate' }
+      responses:
+        '200':
+          description: Ítem actualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Item' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '500': { $ref: '#/components/responses/ServerError' }
+    patch:
+      tags: [Items]
+      summary: Actualización parcial de ítem (PATCH)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ItemPatch' }
+      responses:
+        '200':
+          description: Ítem actualizado parcialmente
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Item' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '500': { $ref: '#/components/responses/ServerError' }
+    delete:
+      tags: [Items]
+      summary: Eliminar ítem
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204': { description: Eliminado sin contenido }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/ServerError' }
+        
+  /reports/catalog-summary:
+    get:
+      tags: [Reports]
+      summary: Reporte resumido del catálogo
+      operationId: getCatalogSummary
+      parameters:
+        - in: query
+          name: from
+          schema: { type: string, format: date }
+          description: Fecha inicial (YYYY-MM-DD)
+        - in: query
+          name: to
+          schema: { type: string, format: date }
+          description: Fecha final (YYYY-MM-DD)
+      responses:
+        '200':
+          description: Resumen de KPIs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalWorks: { type: integer, example: 1203 }
+                  totalAuthors: { type: integer, example: 780 }
+                  totalEditions: { type: integer, example: 2540 }
+                  topThemes:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        theme: { type: string, example: "Ciencia Ficción" }
+                        count: { type: integer, example: 180 }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    IdPath:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer }
+      description: Identificador del recurso.
+    Page:
+      name: page
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, default: 1 }
+      description: Número de página (paginación basada en páginas).
+    PageSize:
+      name: page_size
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 200, default: 20 }
+      description: Tamaño de página.
+    Sort:
+      name: sort
+      in: query
+      required: false
+      schema: { type: string, example: "title,-updated_at" }
+      description: Campos de ordenación. Prefijo '-' para descendente.
+    Q:
+      name: q
+      in: query
+      required: false
+      schema: { type: string }
+      description: Búsqueda básica por texto libre.
+
+  responses:
+    BadRequest:
+      description: Solicitud inválida (parámetros o cuerpo malformado).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Recurso no encontrado.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Conflict:
+      description: Conflicto de unicidad (por ejemplo, ISBN o barcode duplicado).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Unprocessable:
+      description: Datos válidos en formato pero con reglas de dominio incumplidas.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ServerError:
+      description: Error interno del servidor.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+  schemas:
+    ISODateTime:
+      type: string
+      format: date-time
+      example: "2025-10-20T12:34:56Z"
+      description: Fecha/hora en formato ISO 8601.
+
+    Error:
+      type: object
+      description: Envoltura estándar de error.
+      properties:
+        message: { type: string, example: "Validation failed: field 'title' is required" }
+        code: { type: string, example: "VALIDATION_ERROR" }
+        details:
+          type: object
+          additionalProperties: true
+
+    PageMeta:
+      type: object
+      description: Metadatos de paginación.
+      properties:
+        page: { type: integer, example: 1 }
+        page_size: { type: integer, example: 20 }
+        total: { type: integer, example: 148 }
+        total_pages: { type: integer, example: 8 }
+
+    Work:
+      description: >
+        Representa una obra abstracta (título/tema) independiente de sus ediciones.
+      type: object
+      required: [id, title, created_at, updated_at]
+      properties:
+        id: { type: integer, description: Identificador interno de la obra, example: 1 }
+        title: { type: string, description: Título de la obra, example: "Introducción a la IA" }
+        theme: { type: string, description: Tema o materia, example: "Computer Science" }
+        created_at: { $ref: '#/components/schemas/ISODateTime' }
+        updated_at: { $ref: '#/components/schemas/ISODateTime' }
+
+    WorkCreate:
+      type: object
+      description: Cuerpo para crear una obra.
+      required: [title]
+      properties:
+        title: { type: string, example: "Introducción a la IA" }
+        theme: { type: string, example: "Computer Science" }
+
+    WorkUpdate:
+      type: object
+      description: Cuerpo para reemplazar completamente una obra (PUT).
+      required: [title]
+      properties:
+        title: { type: string }
+        theme: { type: string }
+
+    WorkPatch:
+      type: object
+      description: Cuerpo para actualización parcial de una obra (PATCH).
+      properties:
+        title: { type: string }
+        theme: { type: string }
+
+    Author:
+      type: object
+      description: Autor/a de una obra.
+      required: [id, full_name, created_at, updated_at]
+      properties:
+        id: { type: integer, example: 10 }
+        full_name: { type: string, example: "María Pérez" }
+        created_at: { $ref: '#/components/schemas/ISODateTime' }
+        updated_at: { $ref: '#/components/schemas/ISODateTime' }
+
+    AuthorCreate:
+      type: object
+      description: Cuerpo para crear un autor.
+      required: [full_name]
+      properties:
+        full_name: { type: string, example: "María Pérez" }
+
+    AuthorUpdate:
+      type: object
+      description: Cuerpo para reemplazar un autor (PUT).
+      required: [full_name]
+      properties:
+        full_name: { type: string }
+
+    AuthorPatch:
+      type: object
+      description: Cuerpo para actualizar parcialmente un autor (PATCH).
+      properties:
+        full_name: { type: string }
+
+    Edition:
+      type: object
+      description: Edición concreta de una obra.
+      required: [id, work_id, created_at, updated_at]
+      properties:
+        id: { type: integer, example: 101 }
+        work_id: { type: integer, example: 1, description: ID de la obra asociada }
+        year: { type: integer, example: 2022 }
+        publisher: { type: string, example: "TechBooks" }
+        isbn: { type: string, example: "978-1-4028-9462-6", description: Único por edición }
+        cover_url: { type: string, format: uri, example: "https://example.com/covers/101.jpg" }
+        created_at: { $ref: '#/components/schemas/ISODateTime' }
+        updated_at: { $ref: '#/components/schemas/ISODateTime' }
+
+    EditionCreate:
+      type: object
+      description: Cuerpo para crear una edición.
+      required: [work_id]
+      properties:
+        work_id: { type: integer, example: 1 }
+        year: { type: integer }
+        publisher: { type: string }
+        isbn: { type: string }
+        cover_url: { type: string, format: uri }
+
+    EditionUpdate:
+      type: object
+      description: Cuerpo para reemplazar una edición (PUT).
+      required: [work_id]
+      properties:
+        work_id: { type: integer }
+        year: { type: integer }
+        publisher: { type: string }
+        isbn: { type: string }
+        cover_url: { type: string, format: uri }
+
+    EditionPatch:
+      type: object
+      description: Cuerpo para actualizar parcialmente una edición (PATCH).
+      properties:
+        work_id: { type: integer }
+        year: { type: integer }
+        publisher: { type: string }
+        isbn: { type: string }
+        cover_url: { type: string, format: uri }
+
+    Item:
+      type: object
+      description: Ejemplar físico asociado a una edición.
+      required: [id, edition_id, status, created_at, updated_at]
+      properties:
+        id: { type: integer, example: 1001 }
+        edition_id: { type: integer, example: 101, description: ID de la edición }
+        barcode: { type: string, example: "BC1234567890", description: Único por ítem }
+        location: { type: string, example: "Sala A - Estante 3" }
+        status:
+          type: string
+          enum: [available, loaned, repair, lost]
+          example: available
+          description: Estado del ejemplar físico.
+        created_at: { $ref: '#/components/schemas/ISODateTime' }
+        updated_at: { $ref: '#/components/schemas/ISODateTime' }
+
+    ItemCreate:
+      type: object
+      description: Cuerpo para crear un ítem.
+      required: [edition_id]
+      properties:
+        edition_id: { type: integer }
+        barcode: { type: string }
+        location: { type: string }
+        status:
+          type: string
+          enum: [available, loaned, repair, lost]
+
+    ItemUpdate:
+      type: object
+      description: Cuerpo para reemplazar un ítem (PUT).
+      required: [edition_id]
+      properties:
+        edition_id: { type: integer }
+        barcode: { type: string }
+        location: { type: string }
+        status:
+          type: string
+          enum: [available, loaned, repair, lost]
+
+    ItemPatch:
+      type: object
+      description: Cuerpo para actualizar parcialmente un ítem (PATCH).
+      properties:
+        edition_id: { type: integer }
+        barcode: { type: string }
+        location: { type: string }
+        status:
+          type: string
+          enum: [available, loaned, repair, lost]
+
+    WorkAuthorLink:
+      type: object
+      description: Representa la asociación obra-autor.
+      properties:
+        work_id: { type: integer, example: 1 }
+        author_id: { type: integer, example: 10 }
+        created_at: { $ref: '#/components/schemas/ISODateTime' }

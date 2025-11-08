@@ -86,13 +86,13 @@ if __name__ == '__main__':
     get_all_authors()
 
     # 2. Crear un nuevo autor
-    create_author("New Author Name")
+    create_author("MISAEL LOPEZ SANCHEZ")
 
     # 3. Actualizar un autor existente (ejemplo con ID 1)
-    update_author(1, "Updated Author Name")
+    update_author(1, "Gabriel García Márquez")
 
     # 4. Eliminar un autor (ejemplo con ID 1)
-    delete_author(1)
+    delete_author(2)
 
     # 5. Obtener todos los autores nuevamente para verificar los cambios
     get_all_authors()

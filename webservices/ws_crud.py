@@ -329,7 +329,92 @@ def manage_item(item_id):
         conn.close()
         return jsonify({'message': 'Item eliminado'})
 
-# Operaciones CRUD adicionales para otras tablas pueden ser agregadas de manera similar
+# Endpoint para CU-1: Registrar libro nuevo
+@app.route('/register_book', methods=['POST'])
+def register_book():
+    data = request.json
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Insertar en la tabla 'work'
+    cursor.execute('INSERT INTO work (title, theme, created_at, updated_at) VALUES (?, ?, ?, ?)',
+                   (data['title'], data['theme'], datetime.now().isoformat(), datetime.now().isoformat()))
+    work_id = cursor.lastrowid
+
+    # Insertar en la tabla 'author'
+    cursor.execute('INSERT INTO author (full_name, created_at, updated_at) VALUES (?, ?, ?)', (data['author'], datetime.now().isoformat(), datetime.now().isoformat()))
+    author_id = cursor.lastrowid
+
+    # Relación work_author
+    cursor.execute('INSERT INTO work_author (work_id, author_id) VALUES (?, ?)', (work_id, author_id))
+
+    # Insertar en la tabla 'edition'
+    cursor.execute('INSERT INTO edition (work_id, year, publisher, isbn, cover_url, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)', (work_id, data['year'], data['publisher'], data['isbn'], data['cover_url'], datetime.now().isoformat(), datetime.now().isoformat()))
+
+    conn.commit()
+    conn.close()
+    return jsonify({'message': 'Book registered successfully'}), 201
+
+# Endpoint para CU-2: Verificar duplicados
+@app.route('/check_duplicates', methods=['POST'])
+def check_duplicates():
+    data = request.json
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Buscar duplicados por título y autor
+    cursor.execute('''
+        SELECT w.id, w.title, a.full_name FROM work w
+        JOIN work_author wa ON w.id = wa.work_id
+        JOIN author a ON wa.author_id = a.id
+        WHERE w.title = ? AND a.full_name = ?
+    ''', (data['title'], data['author']))
+
+    duplicates = cursor.fetchall()
+    conn.close()
+
+    if duplicates:
+        return jsonify({'duplicates': [dict(row) for row in duplicates]}), 200
+    else:
+        return jsonify({'message': 'No duplicates found'}), 200
+
+# Endpoint para CU-3: Consultar catálogo
+@app.route('/catalog', methods=['GET'])
+def catalog():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Consultar todos los libros
+    cursor.execute('''
+        SELECT w.id, w.title, w.theme, e.year, e.publisher, e.isbn, a.full_name FROM work w
+        JOIN work_author wa ON w.id = wa.work_id
+        JOIN author a ON wa.author_id = a.id
+        JOIN edition e ON w.id = e.work_id
+    ''')
+
+    catalog = cursor.fetchall()
+    conn.close()
+    return jsonify({'catalog': [dict(row) for row in catalog]}), 200
+
+# Endpoint para CU-4: Editar metadatos manualmente
+@app.route('/edit_metadata/<int:book_id>', methods=['PUT'])
+def edit_metadata(book_id):
+    data = request.json
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Actualizar metadatos del libro
+    cursor.execute('UPDATE work SET title = ?, theme = ?, updated_at = ? WHERE id = ?', (data['title'], data['theme'], datetime.now().isoformat(), book_id))
+
+    # Actualizar autor
+    cursor.execute('''
+        UPDATE author SET full_name = ?, updated_at = ?
+        WHERE id = (SELECT author_id FROM work_author WHERE work_id = ?)
+    ''', (data['author'], datetime.now().isoformat(), book_id))
+
+    conn.commit()
+    conn.close()
+    return jsonify({'message': 'Metadata updated successfully'}), 200
 
 if __name__ == '__main__':
     # Inicia la aplicacion Flask en el puerto 8000
